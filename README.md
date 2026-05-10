@@ -1,12 +1,28 @@
-# BACKINGHUM (A DB Backup CLI)
+# BACKINGHUM
 
-A Node.js command-line tool to create, list, restore, and delete database backups for:
+> **Website & Docs:** [backinghum.vercel.app](https://backinghum.vercel.app)
+> **npm:** [npmjs.com/package/backinghum](https://www.npmjs.com/package/backinghum) · `v1.0.6`
 
-- MongoDB
-- MySQL
-- PostgreSQL (local/remote and Docker mode)
+A Node.js command-line tool to create, list, restore, and delete database backups for MongoDB, MySQL, and PostgreSQL. Interactive prompts guide you through every step — no config files required.
 
-The CLI is interactive and stores backup metadata in a local JSON registry under your home directory.
+```bash
+npm install -g backinghum
+```
+
+---
+
+## Website
+
+The project has a live website deployed on Vercel:
+
+**[https://backinghum.vercel.app](https://backinghum.vercel.app)**
+
+- Landing page with install instructions
+- Full documentation at [backinghum.vercel.app/docs](https://backinghum.vercel.app/docs)
+
+The frontend lives in the `frontend/` directory and is built with React + Vite + Tailwind CSS v4.
+
+---
 
 ## Install from npm
 
@@ -24,13 +40,17 @@ backinghum --version
 
 ## Documentation
 
-- Installation guide: [docs/INSTALLATION.md](https://unpkg.com/backinghum@latest/docs/INSTALLATION.md)
-- Commands reference: [docs/COMMANDS.md](https://unpkg.com/backinghum@latest/docs/COMMANDS.md)
-- Internal architecture: [docs/ARCHITECTURE.md](https://unpkg.com/backinghum@latest/docs/ARCHITECTURE.md)
+Full documentation is available at **[backinghum.vercel.app/docs](https://backinghum.vercel.app/docs)**.
+
+Raw markdown docs are also available in this repo:
+
+- [docs/INSTALLATION.md](docs/INSTALLATION.md)
+- [docs/COMMANDS.md](docs/COMMANDS.md)
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
 ---
 
-## Features Implemented
+## Features
 
 - Unified CLI interface for backup lifecycle operations.
 - Interactive prompts for database-specific connection details.
@@ -40,345 +60,150 @@ backinghum --version
   - MySQL (`mysqldump`)
   - PostgreSQL (`pg_dump`)
   - PostgreSQL in Docker (`docker exec ... pg_dump`)
-- Optional backup compression during backup create:
+- Optional backup compression:
   - MySQL/PostgreSQL: `.sql.gz`
   - MongoDB: `.tar.gz` archive of dump folder
 - Backup listing from registry.
-- Backup restore by backup ID:
-  - MongoDB (`mongorestore`)
-  - MySQL (`mysql`)
-  - PostgreSQL (`psql`)
+- Backup restore by backup ID (merge or replace mode).
 - Backup deletion by backup ID (file/folder + registry entry).
 - Registry persistence in `$HOME/.db_backup/backupRegistry.json`.
-- Optional `DB_BACKUP_REGISTRY_PATH` override is accepted only when the path is inside the current user's home directory.
-- Connection snapshot saved with each backup entry to support future restore runs.
+- Connection snapshot saved with each backup entry to support restore runs.
 
 ---
 
-## Project Structure
+## Quick start
 
-- `bin/cli.js` – CLI entrypoint and command wiring.
-- `src/commands/backup/` – command handlers:
-  - `create.js`
-  - `list.js`
-  - `restore.js`
-  - `delete.js`
-- `src/adapters/` – DB adapters:
-  - `baseAdapter.js`
-  - `adaptorFactory.js`
-  - `mongoAdapter.js`
-  - `mysqlAdaptor.js`
-  - `postgresAdapter.js`
-- `src/prompts/` – interactive prompt flows per database.
-- `src/registry/registry.js` – registry read/write helpers.
-- Runtime registry path: `$HOME/.db_backup/backupRegistry.json`.
-- `src/utils/` – option normalization + utility helpers.
+```bash
+# 1. Create a compressed backup
+backinghum backup:create --compress --verbose
+
+# 2. List all backups
+backinghum backup:list
+
+# 3. Restore by ID
+backinghum backup:restore 1776174984348
+
+# 4. Delete when no longer needed
+backinghum backup:delete 1776174984348
+```
+
+---
+
+## Commands
+
+| Command | Description |
+|---|---|
+| `backup:create` | Interactive wizard to create a new backup |
+| `backup:list` | List all backups from the registry |
+| `backup:restore <id>` | Restore a backup by ID |
+| `backup:delete <id>` | Delete a backup by ID |
+
+Options for `backup:create`:
+
+| Flag | Description |
+|---|---|
+| `-c, --compress` | Compress the backup output |
+| `-v, --verbose` | Print detailed process logs |
 
 ---
 
 ## Prerequisites
 
-Install Node.js (recommended LTS), then install the database client tools used by the adapters.
+Install Node.js LTS, then install the native database tools for the databases you plan to use.
 
-### Required CLI tools by database
-
-- **MongoDB**
-  - `mongosh`
-  - `mongodump`
-  - `mongorestore`
-  - `tar` (for compression)
-- **MySQL**
-  - `mysql`
-  - `mysqldump`
-  - `gzip` / `gunzip`
-- **PostgreSQL**
-  - `psql`
-  - `pg_dump`
-  - `gzip` / `gunzip`
-- **PostgreSQL Docker mode**
-  - `docker`
-  - Container must have PostgreSQL client tools available
+| Database | Required tools |
+|---|---|
+| MongoDB | `mongosh`, `mongodump`, `mongorestore`, `tar` |
+| MySQL | `mysql`, `mysqldump`, `gzip`, `gunzip` |
+| PostgreSQL | `psql`, `pg_dump`, `gzip`, `gunzip` |
+| PostgreSQL (Docker) | `docker` (container must have pg client tools) |
 
 ---
 
 ## Installation
 
-### A) End users (recommended)
+### End users
 
-- `npm install -g backinghum`
+```bash
+npm install -g backinghum
+```
 
-### B) Contributors / local development
+### Contributors / local development
 
-From the project root:
+```bash
+git clone https://github.com/AtharvaKatiyar/backinghum.git
+cd backinghum
+npm install
 
-1. Install dependencies:
-  - `npm install`
-2. Run CLI directly:
-  - `node bin/cli.js --help`
-3. Optional local link:
-  - `npm link`
+# Run directly
+node bin/cli.js --help
 
-After linking, the executable command is `backinghum`.
-
----
-
-## CLI Walkthrough
-
-The CLI defines these commands:
-
-- `backup:create`
-- `backup:list`
-- `backup:restore <id>`
-- `backup:delete <id>`
-
-Main options currently wired on `backup:create`:
-
-- `-c, --compress` → enable compression
-- `-v, --verbose` → verbose logs
-
-### 1) Create a backup
-
-Run:
-
-- `backinghum backup:create`
-- Optional flags:
-  - `backinghum backup:create --compress`
-  - `backinghum backup:create --verbose`
-  - `backinghum backup:create --compress --verbose`
-
-Flow:
-
-1. CLI starts backup flow.
-2. Prompts for database type (`mongodb`, `mysql`, `postgres`).
-3. Runs database-specific prompt flow.
-4. Builds adapter from `adaptorFactory`.
-5. Tests database connection.
-6. Executes backup.
-7. Saves backup metadata in registry JSON.
-
-#### MongoDB prompt flow
-
-- Connection type:
-  - Local
-  - MongoDB Atlas (URI)
-
-If Atlas:
-- URI
-- Database name
-- Output directory (default `./backups`)
-
-If Local:
-- Auth required? (yes/no)
-- Host (default `127.0.0.1`)
-- Port (default `27017`)
-- Optional user/password depending on auth
-- Database name
-- Output directory (default `./backups`)
-
-Mongo backup output:
-
-- Uncompressed: folder (`<database>-<timestamp>`)
-- Compressed: `.tar.gz` archive of that folder
-
-#### MySQL prompt flow
-
-- Connection type: Local or Remote
-
-If Local:
-- Host (default `127.0.0.1`)
-- Port (default `3306`)
-- User
-- Password
-- Database name
-- Output directory (default `./backups`)
-
-If Remote:
-- Connection method:
-  - Connection URI
-  - Manual details
-
-Remote + URI:
-- MySQL connection URI
-- Output directory (default `./backups`)
-
-Remote + Manual details:
-- Host
-- Port (default `3306`)
-- User
-- Password
-- Database name
-- SSL required? (yes/no)
-- Output directory (default `./backups`)
-
-MySQL backup output:
-
-- Uncompressed: `.sql`
-- Compressed: `.sql.gz`
-
-#### PostgreSQL prompt flow
-
-- Connection type: Local, Remote, or Docker
-
-If Docker:
-- Container name
-- User
-- Password
-- Database name
-- Output directory (default `./backups`)
-- Uses `docker exec` + `pg_dump`
-
-If Local:
-- Host (default `127.0.0.1`)
-- Port (default `5432`)
-- User
-- Password
-- Database name
-- Output directory (default `./backups`)
-
-If Remote:
-- Connection method:
-  - Connection URI
-  - Manual details
-
-Remote + URI:
-- PostgreSQL connection URI
-- Output directory (default `./backups`)
-
-Remote + Manual details:
-- Host
-- Port (default `5432`)
-- User
-- Password
-- Database name
-- `sslmode` (`disable` or `require`)
-- Output directory (default `./backups`)
-
-PostgreSQL backup output:
-
-- Uncompressed: `.sql`
-- Compressed: `.sql.gz`
+# Or link globally
+npm link
+```
 
 ---
 
-### 2) List backups
+## Project structure
 
-Run:
-
-- `backinghum backup:list`
-
-What it does:
-
-- Reads `$HOME/.db_backup/backupRegistry.json` (or `DB_BACKUP_REGISTRY_PATH` if set to a path inside the current user's home directory)
-- Prints backup history with:
-  - ID
-  - DB type
-  - database name
-  - file size
-  - created time
-  - stored path
-
----
-
-### 3) Restore a backup
-
-Run:
-
-- `backinghum backup:restore <id>`
-
-Flow:
-
-1. Looks up backup by ID from registry.
-2. Verifies connection snapshot exists in that entry.
-3. Prompts for restore mode:
-   - Merge (keep existing data)
-   - Replace (drop existing data)
-4. For replace mode, asks confirmation.
-5. Rebuilds adapter using saved connection data.
-6. Runs adapter `restore()`.
-
-Restore behavior by DB:
-
-- MongoDB: `mongorestore` against backup folder path.
-- MySQL: pipes SQL into `mysql` (supports `.gz` input).
-- PostgreSQL: pipes SQL into `psql` (supports `.gz` input).
+```
+backinghum/
+├── bin/cli.js                  # CLI entrypoint
+├── src/
+│   ├── adapters/               # DB adapters (mongo, mysql, postgres)
+│   ├── commands/backup/        # Command handlers (create, list, restore, delete)
+│   ├── prompts/                # Interactive prompt flows per database
+│   ├── registry/registry.js    # Registry read/write helpers
+│   └── utils/                  # Errors, normalize, validate, sanitize
+├── docs/                       # Markdown documentation
+├── frontend/                   # React + Vite website (deployed to Vercel)
+└── tests/                      # Test suite
+```
 
 ---
 
-### 4) Delete a backup
+## Registry format
 
-Run:
+Each backup entry contains:
 
-- `backinghum backup:delete <id>`
+```json
+{
+  "id": "1776174984348",
+  "db": "postgres",
+  "database": "myapp",
+  "path": "/home/user/backups/myapp_2025-01-10.sql.gz",
+  "compressed": true,
+  "size": 204800,
+  "createdAt": "2025-01-10T14:32:00.000Z",
+  "connection": { "host": "127.0.0.1", "port": "5432", "user": "postgres", "..." : "..." }
+}
+```
 
-What it does:
+> The `connection` object stores credentials in plaintext. The registry file is created with mode `0600` and the directory with `0700`. Treat it as sensitive.
 
-1. Finds backup in registry.
-2. Deletes backup file/folder from disk (if it exists).
-3. Removes registry entry.
-4. Prints delete confirmation.
-
----
-
-## Registry Format
-
-Each created backup is saved as an entry containing fields similar to:
-
-- `id`
-- `db`
-- `database`
-- `path`
-- `connection` (uri/host/port/user/password/mode/container)
-- `size`
-- `compressed`
-- `createdAt`
-
-This allows restore operations to reuse the original connection details.
-
-For URI-based backups, if `database` was not explicitly provided in prompts/options, the CLI derives it from the URI path (for example `/mydb` → `mydb`) before writing the registry entry.
+Registry path can be overridden with `DB_BACKUP_REGISTRY_PATH` — must be inside the current user's home directory.
 
 ---
 
-## Typical End-to-End Example
+## Security
 
-1. Create backup:
-  - `backinghum backup:create --compress --verbose`
-2. List backups:
-  - `backinghum backup:list`
-3. Pick an ID from output.
-4. Restore backup:
-  - `backinghum backup:restore 1776174984348`
-5. Delete old backup if needed:
-  - `backinghum backup:delete 1776174984348`
+- `prepublishOnly` enforces `npm test` + `npm run audit` before publishing.
+- Package `files` allowlist prevents accidental file leakage on publish.
+- Unused dependencies removed to reduce supply-chain risk.
+- Registry path override restricted to paths inside the user's home directory.
 
 ---
 
-## Notes
+## Tech stack
 
-- The linked executable from `package.json` is `backinghum`.
-- The registry file path can be overridden using `DB_BACKUP_REGISTRY_PATH`, but only to a location inside the current user's home directory.
-- Backups can contain sensitive credentials in the saved connection snapshot; protect this project directory accordingly.
-
----
-
-## Security Hardening
-
-- Run security checks before publish:
-  - `npm test`
-  - `npm run audit`
-- `prepublishOnly` enforces tests + audit before publishing.
-- Package publish is restricted using the `files` allowlist in `package.json` to reduce accidental file leakage.
-- Unused dependencies were removed to reduce supply-chain risk.
-- Use npm 2FA and OTP-based publish for account security.
-
----
-
-## Current Tech Stack
-
-- Node.js (ES modules)
-- Commander (CLI parsing)
-- Inquirer (interactive prompts)
-- Native `child_process` for invoking DB tools
-- JSON file registry for persistence
+| Layer | Technology |
+|---|---|
+| CLI parsing | Commander |
+| Interactive prompts | Inquirer |
+| DB tool invocation | Native `child_process` |
+| Backup metadata | JSON file registry |
+| Website | React, Vite, Tailwind CSS v4 |
+| Hosting | Vercel |
 
 ---
 
